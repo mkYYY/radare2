@@ -1622,6 +1622,7 @@ static void
 stripsnug(struct parse *p, struct re_guts *g)
 {
 	g->nstates = p->slen;
+	if (g->strip) free (g->strip);
 	g->strip = (sop *)realloc((char *)p->strip, p->slen * sizeof(sop));
 	if (!g->strip) {
 		SETERROR(R_REGEX_ESPACE);
