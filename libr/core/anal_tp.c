@@ -1,4 +1,4 @@
-/* radare - LGPL - Copyright 2016-2018 - oddcoder, sivaramaaa */
+/* radare - LGPL - Copyright 2016-2020 - oddcoder, sivaramaaa */
 /* type matching - type propagation */
 
 #include <r_anal.h>
@@ -73,17 +73,10 @@ static void var_rename(RAnal *anal, RAnalVar *v, const char *name, ut64 addr) {
 	r_anal_var_rename (anal, fcn->addr, 1, v->kind, v->name, name, false);
 }
 
-static void var_retype(RAnal *anal, RAnalVar *var, const char *vname, char *type, ut64 addr, bool ref, bool pfx) {
-	if (!type || !var) {
-		return;
-	}
-	char *trim = type;
-	r_str_trim (trim);
-	if (!*trim) {
-		return;
-	}
+static void var_retype(RAnal *anal, RAnalVar *var, const char *vname, const char *type, ut64 addr, bool ref, bool pfx) {
+	r_return_if_fail (anal && var && type);
 	bool is_ptr = (vname && *vname == '*')? true: false;
-	if (!strncmp (trim, "int", 3) || (!is_ptr && !strcmp (trim, "void"))) {
+	if (!strncmp (type, "int", 3) || (!is_ptr && !strcmp (type, "void"))) {
 		// default or void type
 		return;
 	}
@@ -111,7 +104,7 @@ static void var_retype(RAnal *anal, RAnalVar *var, const char *vname, char *type
 			return;
 		}
 	} else {
-		r_strbuf_set (sb, trim);
+		r_strbuf_set (sb, type);
 	}
 	if (!strncmp (r_strbuf_get (sb), "const ", 6)) {
 		// Dropping const from type
@@ -202,13 +195,13 @@ static _RAnalCond cond_invert(RAnal *anal, _RAnalCond cond) {
 #define RKEY(a,k,d) sdb_fmt ("var.range.0x%"PFMT64x ".%c.%d", a, k, d)
 #define ADB a->sdb_fcns
 
-static void var_add_range (RAnal *a, RAnalVar *var, _RAnalCond cond, ut64 val) {
+static void var_add_range(RAnal *a, RAnalVar *var, _RAnalCond cond, ut64 val) {
 	const char *key = RKEY (var->addr, var->kind, var->delta);
 	sdb_array_append_num (ADB, key, cond, 0);
 	sdb_array_append_num (ADB, key, val, 0);
 }
 
-R_API RStrBuf *var_get_constraint (RAnal *a, RAnalVar *var) {
+R_API RStrBuf *var_get_constraint(RAnal *a, RAnalVar *var) {
 	const char *key = RKEY (var->addr, var->kind, var->delta);
 	int i, n = sdb_array_length (ADB, key);
 
@@ -675,7 +668,7 @@ R_API void r_core_anal_type_match(RCore *core, RAnalFunction *fcn) {
 				if (prev_dest && (type == R_ANAL_OP_TYPE_MOV || type == R_ANAL_OP_TYPE_STORE)) {
 					char reg[REGNAME_SIZE] = {0};
 					get_src_regname (core, addr, reg, sizeof (reg));
-					bool match = strstr (prev_dest, reg)? true: false;
+					bool match = strstr (prev_dest, reg) != NULL;
 					if (str_flag && match) {
 						var_retype (anal, var, NULL, "const char *", addr, false, false);
 					}
@@ -709,7 +702,7 @@ R_API void r_core_anal_type_match(RCore *core, RAnalFunction *fcn) {
 					var_add_range (anal, var, cond, aop.val);
 				}
 			}
-			prev_var = (var && aop.direction == R_ANAL_OP_DIR_READ)? true: false;
+			prev_var = (var && aop.direction == R_ANAL_OP_DIR_READ);
 			str_flag = false;
 			prop = false;
 			prev_dest = NULL;
